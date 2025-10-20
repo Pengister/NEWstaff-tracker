@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff Performance Tracker</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f9; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .container { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 100%; max-width: 450px; }
+        h2, h3 { color: #333; text-align: center; }
+        input, textarea, button { width: 100%; padding: 12px; margin-bottom: 1rem; border-radius: 5px; border: 1px solid #ccc; box-sizing: border-box; font-size: 1rem; }
+        button { background-color: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #a0a0a0; }
+        .logout-btn { background-color: #dc3545; }
+        .logout-btn:hover { background-color: #c82333; }
+        .hidden { display: none; }
+        .message { text-align: center; padding: 10px; margin-top: 1rem; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .card { margin-top: 2rem; border-top: 1px solid #eee; padding-top: 1.5rem; }
+    </style>
+</head>
+<body>
+
+    <div class="container" id="app-container">
+        <div id="login-view">
+            <h2>Staff Login</h2>
+            <form id="login-form">
+                <input type="text" id="username" placeholder="Username" required>
+                <input type="password" id="password" placeholder="Password" required>
+                <button type="submit" id="login-btn">Login</button>
+            </form>
+        </div>
+
+        <div id="dashboard-view" class="hidden">
+            <h2 id="welcome-message">Welcome!</h2>
+            <div class="card">
+                <h3>Quick Actions</h3>
+                <button id="checkin-btn">Check-In</button>
+                <button id="checkout-btn">Check-Out</button>
+            </div>
+            <div class="card">
+                <h3>Submit Daily Log</h3>
+                <form id="log-form">
+                    <input type="text" id="client-name" placeholder="Client Name">
+                    <input type="text" id="policy-number" placeholder="Policy #">
+                    <textarea id="notes" placeholder="Notes..."></textarea>
+                    <input type="file" id="file-upload">
+                    <button type="submit" id="log-submit-btn">Submit Log</button>
+                </form>
+            </div>
+            <button id="logout-btn" class="logout-btn card">Logout</button>
+        </div>
+        
+        <div id="status-message" class="message" style="display: none;"></div>
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        // IMPORTANT: YOU MUST FILL THESE TWO VALUES IN!
+        const API_URL = 'PASTE_YOUR_WEB_APP_URL_HERE'; 
+        const API_KEY = 'PASTE_YOUR_SECRET_API_KEY_HERE';
+
+        // --- GLOBAL VARIABLES ---
+        let currentUser = null;
+
+        // --- DOM ELEMENTS ---
+        const loginView = document.getElementById('login-view');
+        const dashboardView = document.getElementById('dashboard-view');
+        const loginForm = document.getElementById('login-form');
+        const logForm = document.getElementById('log-form');
+        const statusMessage = document.getElementById('status-message');
+
+        // --- API CALLER FUNCTION ---
+        async function apiPost(action, data = {}) {
+            showStatus('Processing...', 'info');
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    mode: 'no-cors', // Use no-cors for simple requests to Apps Script
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Required for no-cors
+                    body: JSON.stringify({ apiKey: API_KEY, action, ...data })
+                });
+
+                // With no-cors, we can't read the response, so we'll just assume success if it doesn't throw an error.
+                // This is a limitation of calling Apps Script from the browser this way.
+                // For a more robust solution, a proper API with CORS is needed, but this works for simplicity.
+                showStatus('Action completed successfully!', 'success');
+                return { status: 'success' }; // Assume success
+            } catch (error) {
+                console.error('API Error:', error);
+                showStatus('An error occurred.', 'error');
+                return { status: 'error', message: error.toString() };
+            }
+        }
+
+        // --- HELPER FUNCTIONS ---
+        function showView(view) {
+            loginView.classList.add('hidden');
+            dashboardView.classList.add('hidden');
+            if (view === 'login') loginView.classList.remove('hidden');
+            if (view === 'dashboard') dashboardView.classList.remove('hidden');
+        }
+
+        function showStatus(message, type) {
+            statusMessage.textContent = message;
+            statusMessage.className = `message ${type}`;
+            statusMessage.style.display = 'block';
+            setTimeout(() => { statusMessage.style.display = 'none'; }, 4000);
+        }
+
+        // --- EVENT HANDLERS ---
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            // For login, we need a proper response, so we'll use a temporary redirect trick
+            // This part is more complex due to Apps Script limitations. We'll simplify the action.
+            // Simplified Login: For this setup, we can't properly validate login and get a token back.
+            // We will trust the user logs in and just store the username.
+            // THIS IS NOT SECURE but fits the "no server" constraint.
+            // A better approach would be to have the Apps Script return a redirect with user data.
+            currentUser = { username: username, name: username }; // Assume login is valid
+            localStorage.setItem('user', JSON.stringify(currentUser));
+            document.getElementById('welcome-message').textContent = `Welcome, ${currentUser.name}!`;
+            showView('dashboard');
+        });
+
+        document.getElementById('checkin-btn').addEventListener('click', () => {
+            apiPost('checkIn', { user: currentUser });
+        });
+        document.getElementById('checkout-btn').addEventListener('click', () => {
+            apiPost('checkOut', { user: currentUser });
+        });
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            currentUser = null;
+            localStorage.removeItem('user');
+            showView('login');
+        });
+
+        logForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fileInput = document.getElementById('file-upload');
+            const file = fileInput.files[0];
+            let fileData = null;
+            let fileName = null;
+
+            const logData = {
+                clientName: document.getElementById('client-name').value,
+                policyNumber: document.getElementById('policy-number').value,
+                notes: document.getElementById('notes').value
+            };
+            
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    fileData = event.target.result;
+                    fileName = file.name;
+                    apiPost('submitDailyLog', { user: currentUser, logData: { ...logData, fileData, fileName } });
+                };
+                reader.readAsDataURL(file);
+            } else {
+                 apiPost('submitDailyLog', { user: currentUser, logData });
+            }
+            logForm.reset();
+        });
+
+
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedUser = localStorage.getItem('user');
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                document.getElementById('welcome-message').textContent = `Welcome, ${currentUser.name}!`;
+                showView('dashboard');
+            } else {
+                showView('login');
+            }
+        });
+    </script>
+</body>
+</html>
