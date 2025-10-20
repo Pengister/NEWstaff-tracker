@@ -1,186 +1,377 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Staff Performance Tracker</title>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f9; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .container { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 100%; max-width: 450px; }
-        h2, h3 { color: #333; text-align: center; }
-        input, textarea, button { width: 100%; padding: 12px; margin-bottom: 1rem; border-radius: 5px; border: 1px solid #ccc; box-sizing: border-box; font-size: 1rem; }
-        button { background-color: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; }
-        button:hover { background-color: #0056b3; }
-        button:disabled { background-color: #a0a0a0; }
-        .logout-btn { background-color: #dc3545; }
-        .logout-btn:hover { background-color: #c82333; }
-        .hidden { display: none; }
-        .message { text-align: center; padding: 10px; margin-top: 1rem; border-radius: 5px; }
-        .success { background-color: #d4edda; color: #155724; }
-        .error { background-color: #f8d7da; color: #721c24; }
-        .card { margin-top: 2rem; border-top: 1px solid #eee; padding-top: 1.5rem; }
-    </style>
-</head>
-<body>
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Growth Tracker</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <style>
+            .tab-btn { @apply py-4 px-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300; }
+            .tab-btn.active { @apply border-indigo-500 text-indigo-600; }
+            .form-label { @apply block text-sm font-medium text-gray-700 mb-1; }
+            .form-input { @apply mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500; }
+            #loader {
+                border: 5px solid #f3f3f3;
+                border-top: 5px solid #3498db;
+                border-radius: 50%;
+                width: 50px;
+                height: 50px;
+                animation: spin 1s linear infinite;
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                margin-left: -25px;
+                margin-top: -25px;
+            }
+            @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        </style>
+    </head>
+    <body class="bg-gray-100 font-sans">
+        <div id="loader"></div>
+        <div id="app" class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 hidden">
+            <!-- HEADER -->
+            <header class="flex justify-between items-center mb-6">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-800">Growth Tracker</h1>
+                    <p class="text-gray-500">Your central hub for productivity and performance.</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-sm text-gray-600">Welcome,</p>
+                    <p id="currentUser" class="font-semibold text-lg text-indigo-600">Loading...</p>
+                </div>
+            </header>
 
-    <div class="container" id="app-container">
-        <div id="login-view">
-            <h2>Staff Login</h2>
-            <form id="login-form">
-                <input type="text" id="username" placeholder="Username" required>
-                <input type="password" id="password" placeholder="Password" required>
-                <button type="submit" id="login-btn">Login</button>
-            </form>
+            <!-- TABS -->
+            <div class="mb-6">
+                <div class="border-b border-gray-200">
+                    <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                        <button class="tab-btn active" data-tab="tab-daily">Clock In / Out</button>
+                        <button class="tab-btn" data-tab="tab-presentation">Log Presentation</button>
+                        <button class="tab-btn" data-tab="tab-dashboard">Dashboard</button>
+                        <button class="tab-btn" data-tab="tab-goals">My Goals</button>
+                    </nav>
+                </div>
+            </div>
+            
+            <!-- CONTENT -->
+            <main>
+                <!-- Clock In/Out Tab -->
+                <div id="tab-daily" class="tab-content">
+                     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <h2 class="text-xl font-semibold mb-4 border-b pb-2">Time Clock</h2>
+                            <div class="flex space-x-4">
+                                 <button id="clockInBtn" class="flex-1 bg-green-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-600">Clock In</button>
+                                 <button id="clockOutBtn" class="flex-1 bg-red-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-red-600">Clock Out</button>
+                            </div>
+                             <p id="clockStatus" class="mt-4 text-center text-gray-600"></p>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                             <h2 class="text-xl font-semibold mb-4 border-b pb-2">Log Daily Totals</h2>
+                             <form id="dailyMetricsForm">
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div><label for="metricsDate" class="form-label">Date</label><input type="date" id="metricsDate" required class="form-input"></div>
+                                    <div><label for="dials" class="form-label">Total Dials</label><input type="number" id="dials" required class="form-input"></div>
+                                    <div><label for="presentations" class="form-label">Presentations</label><input type="number" id="presentations" required class="form-input"></div>
+                                    <div><label for="binds" class="form-label">Total Binds</label><input type="number" id="binds" required class="form-input"></div>
+                                    <div class="col-span-2"><label for="alp" class="form-label">Total ALP</label><input type="number" step="0.01" id="alp" required class="form-input"></div>
+                                </div>
+                                <div class="text-right mt-6"><button type="submit" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700">Submit</button></div>
+                                 <p id="metricsStatus" class="mt-4 text-center text-gray-600"></p>
+                             </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Log Presentation Tab -->
+                <div id="tab-presentation" class="tab-content hidden">
+                     <div class="bg-white p-8 rounded-lg shadow-md">
+                        <h2 class="text-2xl font-bold mb-6 text-gray-800 border-b pb-4">Presentation & Client Details</h2>
+                        <form id="presentationForm">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div class="space-y-4">
+                                    <div><label for="p-clientName" class="form-label">Client Name</label><input type="text" id="p-clientName" class="form-input" required></div>
+                                    <div><label for="p-date" class="form-label">Date</label><input type="date" id="p-date" class="form-input" required></div>
+                                    <div><label for="p-policyStatus" class="form-label">Policy Status</label><select id="p-policyStatus" class="form-input"><option>PENDING</option><option>POLICY ISSUED</option><option>NOPRD or INV</option><option>DECLINE</option><option>CANCELLED</option><option>THINK</option><option>NO - not interested</option></select></div>
+                                    <div><label for="p-alp" class="form-label">ALP</label><input type="number" step="0.01" id="p-alp" class="form-input"></div>
+                                    <div><label for="p-policyNumber" class="form-label">Policy Number</label><input type="text" id="p-policyNumber" class="form-input"></div>
+                                    <div><label for="p-sponsor" class="form-label">Sponsor</label><input type="text" id="p-sponsor" class="form-input"></div>
+                                </div>
+                                <div class="space-y-4">
+                                    <div><label for="p-phoneNumber" class="form-label">Phone Number</label><input type="tel" id="p-phoneNumber" class="form-input"></div>
+                                    <div><label for="p-email" class="form-label">Email</label><input type="email" id="p-email" class="form-input"></div>
+                                    <div><label for="p-job" class="form-label">Job</label><input type="text" id="p-job" class="form-input"></div>
+                                    <div><label for="p-beneficiary" class="form-label">Beneficiary</label><input type="text" id="p-beneficiary" class="form-input"></div>
+                                    <div><label for="p-executor" class="form-label">Executor</label><input type="text" id="p-executor" class="form-input"></div>
+                                    <div><label for="p-kids" class="form-label">Kids</label><input type="text" id="p-kids" class="form-input"></div>
+                                </div>
+                                <div class="space-y-4">
+                                    <div><label for="p-healthConditions" class="form-label">Health Conditions</label><input type="text" id="p-healthConditions" class="form-input"></div>
+                                    <div><label for="p-plusLeads" class="form-label">Plus Leads</label><input type="text" id="p-plusLeads" class="form-input"></div>
+                                    <div><label for="p-domino" class="form-label">Domino?</label><input type="text" id="p-domino" class="form-input"></div>
+                                    <div><label for="p-nextAppointment" class="form-label">Next Appointment</label><input type="datetime-local" id="p-nextAppointment" class="form-input"></div>
+                                    <div><label for="p-reasonForCoverage" class="form-label">Reason For Coverage/Not</label><textarea id="p-reasonForCoverage" class="form-input" rows="3"></textarea></div>
+                                </div>
+                            </div>
+                            <div class="mt-6"><label for="p-notes" class="form-label">General Notes</label><textarea id="p-notes" class="form-input w-full" rows="4"></textarea></div>
+                            <div class="mt-8 text-right"><button type="submit" class="bg-indigo-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-indigo-700">Log Presentation</button></div>
+                             <p id="presentationStatus" class="mt-4 text-center text-gray-600"></p>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Dashboard Tab -->
+                <div id="tab-dashboard" class="tab-content hidden">
+                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-md">
+                            <h3 class="text-lg font-medium mb-4">This Week: Your Performance vs. Team Average</h3>
+                            <canvas id="performanceChart"></canvas>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <h3 class="text-lg font-medium mb-4">Weekly Top Performers (by ALP)</h3>
+                            <div id="leaderboard" class="space-y-4"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Goals Tab -->
+                <div id="tab-goals" class="tab-content hidden">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <h2 class="text-xl font-semibold mb-4 border-b pb-2">Set Your Monthly Goals</h2>
+                            <form id="goalsForm" class="space-y-4">
+                                <div><label for="g-dials" class="form-label">Monthly Dials Goal</label><input type="number" id="g-dials" class="form-input"></div>
+                                <div><label for="g-presentations" class="form-label">Presentations Goal</label><input type="number" id="g-presentations" class="form-input"></div>
+                                <div><label for="g-binds" class="form-label">Monthly Binds Goal</label><input type="number" id="g-binds" class="form-input"></div>
+                                <div><label for="g-alp" class="form-label">Monthly ALP Goal</label><input type="number" step="0.01" id="g-alp" class="form-input"></div>
+                                <div class="text-right"><button type="submit" class="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700">Save Goals</button></div>
+                                <p id="goalStatus" class="mt-4 text-center text-gray-600"></p>
+                            </form>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <h2 class="text-xl font-semibold mb-4 border-b pb-2">This Month's Progress</h2>
+                            <div id="goalProgress" class="space-y-6 pt-2"></div>
+                        </div>
+                    </div>
+                </div>
+            </main>
         </div>
 
-        <div id="dashboard-view" class="hidden">
-            <h2 id="welcome-message">Welcome!</h2>
-            <div class="card">
-                <h3>Quick Actions</h3>
-                <button id="checkin-btn">Check-In</button>
-                <button id="checkout-btn">Check-Out</button>
-            </div>
-            <div class="card">
-                <h3>Submit Daily Log</h3>
-                <form id="log-form">
-                    <input type="text" id="client-name" placeholder="Client Name">
-                    <input type="text" id="policy-number" placeholder="Policy #">
-                    <textarea id="notes" placeholder="Notes..."></textarea>
-                    <input type="file" id="file-upload">
-                    <button type="submit" id="log-submit-btn">Submit Log</button>
-                </form>
-            </div>
-            <button id="logout-btn" class="logout-btn card">Logout</button>
-        </div>
-        
-        <div id="status-message" class="message" style="display: none;"></div>
-    </div>
+        <script>
+            const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyL9AOpNGAUMS0CXekC4jTI0n0iDOofKryLSD02Xou7yJyqOSoCDatPA-zh5u7F7C6cYg/exec';
+            let performanceChart = null;
 
-    <script>
-        // --- CONFIGURATION ---
-        // IMPORTANT: YOU MUST FILL THESE TWO VALUES IN!
-        const API_URL = 'https://script.google.com/macros/s/AKfycbzJCSPTLdAzFnAmb-ujdF3vaOQ6EBIS8hwXERen1C95mkJYqbdPfqdEuqJi_S3EKzjb/exec'; 
-        const API_KEY = 'MySecretPassword12345!';
+            async function callApi(action, payload = {}, method = 'POST') {
+                document.getElementById('loader').style.display = 'block';
+                try {
+                    let response;
+                    if (method === 'GET') {
+                        const url = new URL(APPS_SCRIPT_URL);
+                        url.searchParams.append('action', action);
+                        Object.keys(payload).forEach(key => url.searchParams.append(key, payload[key]));
+                        response = await fetch(url, { redirect: 'follow' });
+                    } else { // POST
+                        response = await fetch(APPS_SCRIPT_URL, {
+                            method: 'POST',
+                            mode: 'cors',
+                            body: JSON.stringify({ action, payload })
+                        });
+                    }
+                    const result = await response.json();
+                    if (!result.success) throw new Error(result.message || 'API call failed');
+                    return result;
+                } catch (error) {
+                    console.error(`API Error (${action}):`, error);
+                    alert(`Error: ${error.message}`);
+                    throw error;
+                } finally {
+                    document.getElementById('loader').style.display = 'none';
+                }
+            }
+            
+            document.addEventListener('DOMContentLoaded', () => {
+                if(APPS_SCRIPT_URL.includes('PASTE_YOUR')){
+                     alert("CRITICAL: You must edit the index.html file and paste your Apps Script URL into the APPS_SCRIPT_URL variable.");
+                     document.getElementById('loader').style.display = 'none';
+                     return;
+                }
+                initializeApp();
+                setupTabNavigation();
+                setupEventListeners();
+            });
 
-        // --- GLOBAL VARIABLES ---
-        let currentUser = null;
-
-        // --- DOM ELEMENTS ---
-        const loginView = document.getElementById('login-view');
-        const dashboardView = document.getElementById('dashboard-view');
-        const loginForm = document.getElementById('login-form');
-        const logForm = document.getElementById('log-form');
-        const statusMessage = document.getElementById('status-message');
-
-        // --- API CALLER FUNCTION ---
-        async function apiPost(action, data = {}) {
-            showStatus('Processing...', 'info');
-            try {
-                const response = await fetch(API_URL, {
-                    method: 'POST',
-                    mode: 'no-cors', // Use no-cors for simple requests to Apps Script
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Required for no-cors
-                    body: JSON.stringify({ apiKey: API_KEY, action, ...data })
+            async function initializeApp() {
+                try {
+                    const result = await callApi('getUserInfo', {}, 'GET');
+                    document.getElementById('currentUser').textContent = result.data.name;
+                    await Promise.all([updateDashboard(), updateGoals()]);
+                    document.getElementById('app').classList.remove('hidden');
+                } catch (error) {
+                     document.getElementById('currentUser').textContent = "Authorization Error";
+                     alert("Could not load user data. You may need to visit the Apps Script URL in your browser once to authorize the script. If the problem persists, ensure your account is added as a 'Test User' in the GCP OAuth Consent Screen for this project.");
+                }
+            }
+            
+            function setupTabNavigation() {
+                const tabs = document.querySelectorAll('.tab-btn');
+                const contents = document.querySelectorAll('.tab-content');
+                tabs.forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        tabs.forEach(item => item.classList.remove('active'));
+                        tab.classList.add('active');
+                        const target = document.getElementById(tab.dataset.tab);
+                        contents.forEach(content => content.classList.add('hidden'));
+                        target.classList.remove('hidden');
+                    });
                 });
-
-                // With no-cors, we can't read the response, so we'll just assume success if it doesn't throw an error.
-                // This is a limitation of calling Apps Script from the browser this way.
-                // For a more robust solution, a proper API with CORS is needed, but this works for simplicity.
-                showStatus('Action completed successfully!', 'success');
-                return { status: 'success' }; // Assume success
-            } catch (error) {
-                console.error('API Error:', error);
-                showStatus('An error occurred.', 'error');
-                return { status: 'error', message: error.toString() };
             }
-        }
-
-        // --- HELPER FUNCTIONS ---
-        function showView(view) {
-            loginView.classList.add('hidden');
-            dashboardView.classList.add('hidden');
-            if (view === 'login') loginView.classList.remove('hidden');
-            if (view === 'dashboard') dashboardView.classList.remove('hidden');
-        }
-
-        function showStatus(message, type) {
-            statusMessage.textContent = message;
-            statusMessage.className = `message ${type}`;
-            statusMessage.style.display = 'block';
-            setTimeout(() => { statusMessage.style.display = 'none'; }, 4000);
-        }
-
-        // --- EVENT HANDLERS ---
-        loginForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
             
-            // For login, we need a proper response, so we'll use a temporary redirect trick
-            // This part is more complex due to Apps Script limitations. We'll simplify the action.
-            // Simplified Login: For this setup, we can't properly validate login and get a token back.
-            // We will trust the user logs in and just store the username.
-            // THIS IS NOT SECURE but fits the "no server" constraint.
-            // A better approach would be to have the Apps Script return a redirect with user data.
-            currentUser = { username: username, name: username }; // Assume login is valid
-            localStorage.setItem('user', JSON.stringify(currentUser));
-            document.getElementById('welcome-message').textContent = `Welcome, ${currentUser.name}!`;
-            showView('dashboard');
-        });
+            function setupEventListeners() {
+                document.getElementById("clockInBtn").addEventListener("click", () => handleClockEvent("Clock In"));
+                document.getElementById("clockOutBtn").addEventListener("click", () => handleClockEvent("Clock Out"));
+                document.getElementById("dailyMetricsForm").addEventListener("submit", handleDailyMetrics);
+                document.getElementById("presentationForm").addEventListener("submit", handlePresentation);
+                document.getElementById("goalsForm").addEventListener("submit", handleSetGoal);
+            }
 
-        document.getElementById('checkin-btn').addEventListener('click', () => {
-            apiPost('checkIn', { user: currentUser });
-        });
-        document.getElementById('checkout-btn').addEventListener('click', () => {
-            apiPost('checkOut', { user: currentUser });
-        });
-        document.getElementById('logout-btn').addEventListener('click', () => {
-            currentUser = null;
-            localStorage.removeItem('user');
-            showView('login');
-        });
+            async function handleClockEvent(eventType) {
+                const statusEl = document.getElementById("clockStatus");
+                statusEl.textContent = `Logging ${eventType}...`;
+                try {
+                    const result = await callApi('logClockEvent', { eventType });
+                    statusEl.textContent = result.message;
+                    setTimeout(() => statusEl.textContent = '', 3000);
+                } catch (error) { statusEl.textContent = `Error: ${error.message}`; }
+            }
 
-        logForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const fileInput = document.getElementById('file-upload');
-            const file = fileInput.files[0];
-            let fileData = null;
-            let fileName = null;
+            async function handleDailyMetrics(e) {
+                e.preventDefault();
+                const statusEl = document.getElementById("metricsStatus");
+                statusEl.textContent = "Submitting...";
+                try {
+                    const payload = {
+                        dateOfMetrics: document.getElementById('metricsDate').value,
+                        dials: document.getElementById('dials').value,
+                        presentations: document.getElementById('presentations').value,
+                        binds: document.getElementById('binds').value,
+                        alp: document.getElementById('alp').value,
+                    };
+                    const result = await callApi('logDailyMetrics', payload);
+                    statusEl.textContent = result.message;
+                    e.target.reset();
+                    updateDashboard(); 
+                    updateGoals();
+                } catch (error) { statusEl.textContent = `Error: ${error.message}`; }
+            }
 
-            const logData = {
-                clientName: document.getElementById('client-name').value,
-                policyNumber: document.getElementById('policy-number').value,
-                notes: document.getElementById('notes').value
-            };
+            async function handlePresentation(e) {
+                e.preventDefault();
+                const statusEl = document.getElementById("presentationStatus");
+                statusEl.textContent = "Logging presentation...";
+                 try {
+                    const payload = {
+                        clientName: document.getElementById('p-clientName').value,
+                        date: document.getElementById('p-date').value,
+                        policyStatus: document.getElementById('p-policyStatus').value,
+                        alp: document.getElementById('p-alp').value,
+                        policyNumber: document.getElementById('p-policyNumber').value,
+                        sponsor: document.getElementById('p-sponsor').value,
+                        phoneNumber: document.getElementById('p-phoneNumber').value,
+                        email: document.getElementById('p-email').value,
+                        job: document.getElementById('p-job').value,
+                        beneficiary: document.getElementById('p-beneficiary').value,
+                        executor: document.getElementById('p-executor').value,
+                        kids: document.getElementById('p-kids').value,
+                        healthConditions: document.getElementById('p-healthConditions').value,
+                        plusLeads: document.getElementById('p-plusLeads').value,
+                        domino: document.getElementById('p-domino').value,
+                        nextAppointment: document.getElementById('p-nextAppointment').value,
+                        reasonForCoverage: document.getElementById('p-reasonForCoverage').value,
+                        notes: document.getElementById('p-notes').value,
+                    };
+                    const result = await callApi('logPresentation', payload);
+                    statusEl.textContent = result.message;
+                    e.target.reset();
+                 } catch(error) { statusEl.textContent = `Error: ${error.message}`; }
+            }
+
+            async function handleSetGoal(e) {
+                e.preventDefault();
+                const statusEl = document.getElementById("goalStatus");
+                statusEl.textContent = "Saving goals...";
+                 try {
+                    const payload = {
+                        dials: document.getElementById('g-dials').value,
+                        presentations: document.getElementById('g-presentations').value,
+                        binds: document.getElementById('g-binds').value,
+                        alp: document.getElementById('g-alp').value,
+                    };
+                    const result = await callApi('setGoal', payload);
+                    statusEl.textContent = result.message;
+                    updateGoals();
+                 } catch(error) { statusEl.textContent = `Error: ${error.message}`; }
+            }
             
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    fileData = event.target.result;
-                    fileName = file.name;
-                    apiPost('submitDailyLog', { user: currentUser, logData: { ...logData, fileData, fileName } });
-                };
-                reader.readAsDataURL(file);
-            } else {
-                 apiPost('submitDailyLog', { user: currentUser, logData });
+            async function updateDashboard() {
+                try {
+                    const result = await callApi('getDashboardData', {}, 'GET');
+                    const data = result.data;
+                    
+                    const ctx = document.getElementById('performanceChart').getContext('2d');
+                    if (performanceChart) performanceChart.destroy();
+                    performanceChart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: ['Dials', 'Presentations', 'Binds', 'ALP'],
+                            datasets: [
+                                { label: 'Your Performance', data: [data.personal.dials, data.personal.presentations, data.personal.binds, data.personal.alp], backgroundColor: 'rgba(59, 130, 246, 0.5)', borderColor: 'rgba(59, 130, 246, 1)', borderWidth: 1 },
+                                { label: 'Team Average', data: [data.team.dials, data.team.presentations, data.team.binds, data.team.alp], backgroundColor: 'rgba(209, 213, 219, 0.5)', borderColor: 'rgba(107, 114, 128, 1)', borderWidth: 1 }
+                            ]
+                        }
+                    });
+
+                    const leaderboardEl = document.getElementById('leaderboard');
+                    leaderboardEl.innerHTML = data.leaderboard.length ? data.leaderboard.map((p, i) => `
+                        <div class="flex items-center justify-between">
+                            <span class="font-medium">${i + 1}. ${p.name}</span>
+                            <span class="text-gray-600 font-semibold">$${p.alp.toFixed(2)}</span>
+                        </div>`).join('') : '<p class="text-gray-500">No data for this week yet.</p>';
+                    
+                } catch (error) { /* error is already alerted by callApi */ }
             }
-            logForm.reset();
-        });
 
+            async function updateGoals() {
+                try {
+                    const result = await callApi('getGoals', {}, 'GET');
+                    const data = result.data;
+                    
+                    document.getElementById('g-dials').value = data.goals.dials;
+                    document.getElementById('g-presentations').value = data.goals.presentations;
+                    document.getElementById('g-binds').value = data.goals.binds;
+                    document.getElementById('g-alp').value = data.goals.alp;
+                    
+                    const progressEl = document.getElementById('goalProgress');
+                    progressEl.innerHTML = Object.keys(data.goals).map(key => {
+                        const goal = data.goals[key] || 0;
+                        const progress = data.progress[key] || 0;
+                        const percent = goal > 0 ? Math.min(100, Math.round((progress / goal) * 100)) : 0;
+                        const isCurrency = key === 'alp';
+                        return `<div>
+                            <div class="flex justify-between mb-1">
+                              <span class="text-base font-medium text-gray-700 capitalize">${key}</span>
+                              <span class="text-sm font-medium text-gray-700">${isCurrency ? '$' : ''}${progress.toFixed(isCurrency ? 2:0)} / ${isCurrency ? '$' : ''}${goal}</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2.5">
+                              <div class="bg-blue-600 h-2.5 rounded-full" style="width: ${percent}%"></div>
+                            </div>
+                        </div>`;
+                    }).join('');
 
-        // --- INITIALIZATION ---
-        document.addEventListener('DOMContentLoaded', () => {
-            const savedUser = localStorage.getItem('user');
-            if (savedUser) {
-                currentUser = JSON.parse(savedUser);
-                document.getElementById('welcome-message').textContent = `Welcome, ${currentUser.name}!`;
-                showView('dashboard');
-            } else {
-                showView('login');
+                } catch (error) { /* error is already alerted by callApi */ }
             }
-        });
-    </script>
-</body>
-
-</html>
+        </script>
+    </body>
+    </html>
+    
 
